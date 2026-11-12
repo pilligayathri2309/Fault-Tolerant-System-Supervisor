@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fault-Tolerant System Supervisor</title>
+<style>
+:root{--bg:#0b1220;--panel:#111c2e;--panel2:#152238;--line:#263750;--text:#e8eef8;--muted:#91a3bb;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0%,#172943 0,#0b1220 42%);color:var(--text);font:15px/1.5 Inter,Segoe UI,Arial,sans-serif}
+.wrap{max-width:1250px;margin:auto;padding:28px 22px 50px}.top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:24px}
+.eyebrow{color:#8db8f5;text-transform:uppercase;letter-spacing:2px;font-size:11px;font-weight:700}
+h1{font-size:clamp(25px,4vw,36px);margin:5px 0 4px;letter-spacing:-.8px}.sub{color:var(--muted);margin:0}
+.badge{border:1px solid #71551d;background:#302610;color:#ffd58a;border-radius:999px;padding:8px 13px;font-size:12px;font-weight:700;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.card{background:linear-gradient(145deg,var(--panel),#0f1929);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:0 10px 28px #0002}
+.klabel{color:var(--muted);font-size:12px}.kvalue{font-size:27px;font-weight:750;margin-top:5px}.kfoot{font-size:11px;color:var(--muted);margin-top:2px}
+.section{margin-top:18px}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 12px}.sectionhead h2{font-size:17px;margin:0}.hint{color:var(--muted);font-size:12px}
+.azgrid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.az{padding:20px}.aztop{display:flex;justify-content:space-between;align-items:center}.azname{font-size:18px;font-weight:750}.zone{color:var(--muted);font-size:12px}
+.state{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:750}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+.healthy{color:#86efac;background:#123321;border:1px solid #1d6a3b}.failed{color:#fca5a5;background:#3a171b;border:1px solid #7d2932}
+.details{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}.detail{background:var(--panel2);border:1px solid #263750;border-radius:10px;padding:10px}.detail b{display:block;font-size:13px}.detail span{font-size:11px;color:var(--muted)}
+.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer;font-size:12px}.btn-red{background:#7f1d1d;color:#fee2e2}.btn-green{background:#14532d;color:#dcfce7}.btn-blue{background:#1d4ed8;color:white}.btn-ghost{background:#1b2a40;color:#cbd5e1;border:1px solid #344963}
+.arch{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:center}.node{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}.node strong{display:block;font-size:13px}.node small{color:var(--muted);font-size:11px}.arrow{color:#6683a7;font-size:22px}
+.lower{display:grid;grid-template-columns:1.1fr .9fr;gap:15px}.log{max-height:255px;overflow:auto}.event{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #24334a;font-size:12px}.event:last-child{border:0}.time{color:var(--muted);white-space:nowrap}.eventtext{flex:1}.tag{font-size:10px;font-weight:800;border-radius:5px;padding:2px 6px;margin-right:6px}.tag-red{background:#4a1c22;color:#fca5a5}.tag-green{background:#123b27;color:#86efac}.tag-blue{background:#172f52;color:#93c5fd}
+.note{font-size:12px;color:#b7c6d9;background:#13243a;border:1px solid #2c496b;padding:13px 15px;border-radius:11px;margin-top:16px}
+.footer{color:#6f829b;font-size:11px;text-align:center;margin-top:25px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.lower{grid-template-columns:1fr}.arch{grid-template-columns:1fr}.arrow{transform:rotate(90deg);text-align:center}}
+@media(max-width:560px){.top{align-items:flex-start;flex-direction:column}.azgrid{grid-template-columns:1fr}.details{grid-template-columns:1fr 1fr}.wrap{padding:20px 13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><div class="eyebrow">Cloud computing · IoT monitoring simulation</div><h1>Fault-Tolerant System Supervisor</h1><p class="sub">Two Availability Zones. Independent health states. One resilient application.</p></div>
+    <div class="badge" id="connectionBadge">● CONNECTING TO AWS…</div>
+  </header>
+
+  <section class="grid">
+    <div class="card"><div class="klabel">Availability Zones</div><div class="kvalue">2</div><div class="kfoot">Configured for this demonstration</div></div>
+    <div class="card"><div class="klabel">Healthy zones</div><div class="kvalue" id="healthyCount">2 / 2</div><div class="kfoot">Based on live AWS target health</div></div>
+    <div class="card"><div class="klabel">Unhealthy zones</div><div class="kvalue" id="failedCount">0</div><div class="kfoot">Degraded or unknown zones</div></div>
+    <div class="card"><div class="klabel">Overall system</div><div class="kvalue" id="overall">OPERATIONAL</div><div class="kfoot" id="overallFoot">At least one zone is healthy</div></div>
+  </section>
+
+  <section class="section">
+    <div class="sectionhead"><h2>Availability Zone health</h2><span class="hint" id="lastUpdated">Waiting for first AWS response…</span></div>
+    <div class="azgrid">
+      <article class="card az">
+        <div class="aztop"><div><div class="azname">Availability Zone 1</div><div class="zone">AZ-1 · Application group A</div></div><div id="state1" class="state healthy"><i class="dot"></i><span>HEALTHY</span></div></div>
+        <div class="details"><div class="detail"><b id="ec21">Running</b><span>EC2 target</span></div><div class="detail"><b id="alb1">Healthy</b><span>ALB health check</span></div><div class="detail"><b id="led1">GREEN</b><span>Virtual LED indicator</span></div></div>
+        <div class="hint" id="targetInfo1">Waiting for AWS target information…</div>
+      </article>
+      <article class="card az">
+        <div class="aztop"><div><div class="azname">Availability Zone 2</div><div class="zone">AZ-2 · Application group B</div></div><div id="state2" class="state healthy"><i class="dot"></i><span>HEALTHY</span></div></div>
+        <div class="details"><div class="detail"><b id="ec22">Running</b><span>EC2 target</span></div><div class="detail"><b id="alb2">Healthy</b><span>ALB health check</span></div><div class="detail"><b id="led2">GREEN</b><span>Virtual LED indicator</span></div></div>
+        <div class="hint" id="targetInfo2">Waiting for AWS target information…</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sectionhead"><h2>System architecture</h2><span class="hint">Connected AWS implementation</span></div>
+    <div class="card arch">
+      <div class="node"><strong>Web dashboard</strong><small>Browser UI · live refresh</small></div><div class="arrow">⇄</div>
+      <div class="node"><strong>API Gateway</strong><small>GET /health</small></div><div class="arrow">⇄</div>
+      <div class="node"><strong>Lambda health monitor</strong><small>ALB · EC2 · DynamoDB</small></div>
+    </div>
+  </section>
+
+  <section class="section lower">
+    <div class="card"><div class="sectionhead"><h2>Recent activity</h2><button class="btn btn-ghost" onclick="clearLog()">Clear log</button></div><div class="log" id="log"></div></div>
+    <div class="card"><div class="sectionhead"><h2>How to demonstrate</h2></div>
+      <ol style="padding-left:19px;margin:5px 0;color:#c7d4e5;font-size:13px">
+        <li>The dashboard requests live health data from API Gateway.</li>
+        <li>Lambda checks registered load-balancer targets and identifies their Availability Zones.</li>
+        <li>The dashboard refreshes automatically every 60 seconds.</li>
+        <li>Use the AWS EC2 console to terminate one test instance at a time, then observe the target health and Auto Scaling replacement.</li>
+      </ol>
+      <div class="note"><b>Monitoring note:</b> The indicators show application-target health in each Availability Zone, not proof of an AWS-wide Availability Zone outage. A zone with no registered target is shown as UNKNOWN. No physical hardware is required.</div>
+    </div>
+  </section>
+  <div class="footer">Fault-Tolerant System Supervisor · Live AWS health monitoring · Refresh interval: 60 seconds</div>
+</div>
+<script>
+// 1) Paste your API Gateway Invoke URL here, including /health at the end.
+const API_URL = "https://7kdsohmk0c.execute-api.us-east-1.amazonaws.com/health";
+
+// Refresh interval: EventBridge also invokes the monitor approximately once per minute.
+const REFRESH_MS = 60000;
+const zoneState = {1: "UNKNOWN", 2: "UNKNOWN"};
+let firstLoad = true;
+
+function stamp() {
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function addLog(message, type="blue") {
+  const log = document.getElementById("log");
+  const row = document.createElement("div");
+  row.className = "event";
+  const tagClass = type === "red" ? "tag-red" : type === "green" ? "tag-green" : "tag-blue";
+  const tagText = type === "red" ? "ALERT" : type === "green" ? "HEALTHY" : "INFO";
+  const time = document.createElement("span");
+  time.className = "time";
+  time.textContent = stamp();
+  const content = document.createElement("span");
+  content.className = "eventtext";
+  const tag = document.createElement("span");
+  tag.className = "tag " + tagClass;
+  tag.textContent = tagText;
+  content.append(tag, document.createTextNode(message));
+  row.append(time, content);
+  log.prepend(row);
+}
+
+function paintZone(n, record) {
+  const status = String(record.status || "UNKNOWN").toUpperCase();
+  const state = document.getElementById("state" + n);
+  const isHealthy = status === "HEALTHY";
+  const isDegraded = status === "DEGRADED" || status === "UNHEALTHY";
+  state.className = "state " + (isHealthy ? "healthy" : "failed");
+  state.querySelector("span").textContent = status;
+
+  document.getElementById("ec2" + n).textContent =
+    record.totalTargets === 0 ? "No target" :
+    `${record.healthyTargets || 0} / ${record.totalTargets} healthy`;
+  document.getElementById("alb" + n).textContent =
+    isHealthy ? "Healthy" : isDegraded ? "Degraded" : "Unknown";
+  document.getElementById("led" + n).textContent =
+    isHealthy ? "GREEN" : isDegraded ? "RED" : "UNKNOWN";
+
+  const ids = Array.isArray(record.instanceIds) ? record.instanceIds : [];
+  document.getElementById("targetInfo" + n).textContent =
+    `Zone: ${record.availabilityZone || "Not reported"} · Targets: ${record.totalTargets ?? 0} · Instance(s): ${ids.length ? ids.join(", ") : "None registered"}`;
+
+  const previous = zoneState[n];
+  if (!firstLoad && previous !== status) {
+    addLog(`AZ-${n} changed from ${previous} to ${status}.`, isHealthy ? "green" : isDegraded ? "red" : "blue");
+  }
+  zoneState[n] = status;
+}
+
+function updateSummary(records) {
+  const statuses = records.map(r => String(r.status || "UNKNOWN").toUpperCase());
+  const healthy = statuses.filter(s => s === "HEALTHY").length;
+  const notHealthy = statuses.filter(s => s === "DEGRADED" || s === "UNHEALTHY").length;
+  const unknown = statuses.filter(s => s === "UNKNOWN").length;
+
+  document.getElementById("healthyCount").textContent = `${healthy} / 2`;
+  document.getElementById("failedCount").textContent = String(notHealthy + unknown);
+
+  const overall = document.getElementById("overall");
+  if (healthy === 2) {
+    overall.textContent = "OPERATIONAL";
+    overall.style.color = "#86efac";
+    document.getElementById("overallFoot").textContent = "Both application target groups are healthy";
+  } else if (healthy > 0) {
+    overall.textContent = unknown > 0 && notHealthy === 0 ? "PARTIAL DATA" : "DEGRADED";
+    overall.style.color = "#fbbf24";
+    document.getElementById("overallFoot").textContent = "At least one zone is healthy; check the zone details";
+  } else if (unknown === 2) {
+    overall.textContent = "UNKNOWN";
+    overall.style.color = "#fbbf24";
+    document.getElementById("overallFoot").textContent = "No confirmed healthy targets reported";
+  } else {
+    overall.textContent = "UNHEALTHY";
+    overall.style.color = "#fca5a5";
+    document.getElementById("overallFoot").textContent = "No healthy application targets reported";
+  }
+}
+
+async function refreshHealth() {
+  const badge = document.getElementById("connectionBadge");
+  if (API_URL.includes("PASTE_YOUR_API_INVOKE_URL_HERE")) {
+    badge.textContent = "● API URL NOT CONFIGURED";
+    badge.style.borderColor = "#71551d";
+    badge.style.background = "#302610";
+    document.getElementById("lastUpdated").textContent = "Add your API URL in the script.";
+    return;
+  }
+
+  try {
+    const response = await fetch(API_URL, {method: "GET", cache: "no-store"});
+    if (!response.ok) throw new Error(`API returned HTTP ${response.status}`);
+    const data = await response.json();
+    const records = data.availabilityZones;
+    if (!Array.isArray(records)) throw new Error("API response did not contain availabilityZones.");
+
+    const byAz = Object.fromEntries(records.map(r => [r.availabilityZone, r]));
+    const record1 = byAz["us-east-1a"] || {availabilityZone:"us-east-1a", status:"UNKNOWN", totalTargets:0, healthyTargets:0, instanceIds:[]};
+    const record2 = byAz["us-east-1b"] || {availabilityZone:"us-east-1b", status:"UNKNOWN", totalTargets:0, healthyTargets:0, instanceIds:[]};
+
+    paintZone(1, record1);
+    paintZone(2, record2);
+    updateSummary([record1, record2]);
+
+    badge.textContent = "● LIVE AWS DATA";
+    badge.style.borderColor = "#1d6a3b";
+    badge.style.background = "#123321";
+    badge.style.color = "#86efac";
+    document.getElementById("lastUpdated").textContent = "Last updated: " + stamp();
+    if (firstLoad) addLog("Connected to AWS health API; live monitoring started.", "green");
+    firstLoad = false;
+  } catch (error) {
+    badge.textContent = "● API CONNECTION ERROR";
+    badge.style.borderColor = "#7d2932";
+    badge.style.background = "#3a171b";
+    badge.style.color = "#fca5a5";
+    document.getElementById("lastUpdated").textContent = "Refresh failed: " + error.message;
+    if (firstLoad) addLog("Could not connect to the AWS API: " + error.message, "red");
+  }
+}
+
+function clearLog() {
+  document.getElementById("log").innerHTML = "";
+}
+
+refreshHealth();
+setInterval(refreshHealth, REFRESH_MS);
+</script>
+</body>
+</html>
